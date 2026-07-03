@@ -1,0 +1,25 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+*.db
+*.joblib
+backend/.env
+
+# Node
+node_modules/
+frontend/.next/
+frontend/.env.local
+
+# Hardhat
+blockchain/artifacts/
+blockchain/cache/
+blockchain/deployed_address.txt
+
+# setup.sh runtime
+logs/
+.pids/
+
+# misc
+.DS_Store
+*.log

@@ -1,0 +1,58 @@
+# One-command demo:  docker compose up --build
+# Brings up: local Hardhat chain (+ deployed AuditLog) -> FastAPI backend
+# (seeds + trains on start) -> Next.js dashboard.
+services:
+  chain:
+    build: ./blockchain
+    container_name: itp-chain
+    ports:
+      - "8545:8545"
+    environment:
+      ADDRESS_OUT: /shared/deployed_address.txt
+    volumes:
+      - shared:/shared
+    healthcheck:
+      test: ["CMD", "test", "-s", "/shared/deployed_address.txt"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build: ./backend
+    container_name: itp-backend
+    depends_on:
+      chain:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      JWT_SECRET: demo-secret-change-me
+      DATABASE_URL: sqlite:////app/data/insider_threat.db
+      RPC_URL: http://chain:8545
+      CHAIN_ENABLED: "true"
+      CONTRACT_ADDRESS_FILE: /shared/deployed_address.txt
+      MODEL_PATH: /app/data/iforest_model.joblib
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin123
+      # Optional LLM (falls back to template if empty):
+      LLM_API_KEY: ""
+      LLM_BASE_URL: https://openrouter.ai/api/v1
+      LLM_MODEL: openai/gpt-4o-mini
+    volumes:
+      - shared:/shared
+      - backend_data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    container_name: itp-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  shared:
+  backend_data:
