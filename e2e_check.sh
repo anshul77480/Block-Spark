@@ -8,8 +8,17 @@ say "1. Health (model loaded + chain connected?)"
 curl -s "$API/health"; echo
 
 say "2. Login as admin -> JWT"
+MFA_CODE=$(python3 -c "
+import hmac, hashlib, time, struct, base64
+key = base64.b32decode('JBSWY3DPEHPK3PXP')
+counter = int(time.time()) // 30
+h = hmac.new(key, struct.pack('>Q', counter), hashlib.sha1).digest()
+offset = h[-1] & 0x0f
+code = f'{(struct.unpack(\">I\", h[offset:offset+4])[0] & 0x7fffffff) % 1000000:06d}'
+print(code)
+")
 TOK=$(curl -s -X POST "$API/auth/login" -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"admin123"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+  -d "{\"username\":\"admin\",\"password\":\"admin123\",\"mfa_code\":\"$MFA_CODE\"}" | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
 echo "token: ${TOK:0:24}..."
 AUTH="Authorization: Bearer $TOK"
 

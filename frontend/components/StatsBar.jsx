@@ -12,7 +12,7 @@ function StatCard({ icon: Icon, label, value, tone = "brand", hint }) {
     neutral: "text-muted bg-white/5",
   };
   return (
-    <div className="card group relative overflow-hidden px-4 py-3.5 transition hover:border-border/80">
+    <div className="card px-4 py-3.5">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-medium uppercase tracking-wide text-faint">{label}</span>
         <span className={`grid h-7 w-7 place-items-center rounded-lg ${toneMap[tone]}`}>

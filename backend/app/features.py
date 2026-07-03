@@ -72,6 +72,11 @@ def _haversine_km(lat1, lon1, lat2, lon2) -> float:
 
 # Rough lat/lon lookup for the demo geos the simulator/adapter emit.
 GEO_COORDS = {
+    "Pune, IN": (18.5204, 73.8567),
+    "Mumbai, IN": (19.0760, 72.8777),
+    "Bengaluru, IN": (12.9716, 77.5946),
+    "Delhi, IN": (28.7041, 77.1025),
+    "Hyderabad, IN": (17.3850, 78.4867),
     "New York, US": (40.7128, -74.0060),
     "Newark, US": (40.7357, -74.1724),
     "Chicago, US": (41.8781, -87.6298),

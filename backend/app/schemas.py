@@ -16,13 +16,15 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    mfa_code: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
-    access_token: str
+    access_token: Optional[str] = None
     token_type: str = "bearer"
-    role: str
-    username: str
+    role: Optional[str] = None
+    username: Optional[str] = None
+    mfa_required: bool = False
 
 
 class UserOut(BaseModel):
@@ -31,6 +33,7 @@ class UserOut(BaseModel):
     username: str
     email: Optional[str] = None
     role: str
+    mfa_enabled: bool = False
 
 
 # ---- events / ingestion ----
@@ -90,9 +93,16 @@ class ScoredEvent(BaseModel):
     top_features: Optional[list] = None
     explanation: Optional[str] = None
     recommended_action: Optional[str] = None
+    
+    # QPC Fields
+    qpc_signature: Optional[str] = None
+    qpc_pubkey: Optional[str] = None
+    qpc_verified: bool = False
+
     event_hash: Optional[str] = None
     anchor_tx: Optional[str] = None
     anchored: bool = False
+    tampered: Optional[bool] = False
 
 
 class AlertOut(BaseModel):
@@ -106,6 +116,12 @@ class AlertOut(BaseModel):
     risk_score: float
     message: str
     recommended_action: Optional[str] = None
+    
+    # QPC Fields
+    qpc_signature: Optional[str] = None
+    qpc_pubkey: Optional[str] = None
+    qpc_verified: bool = False
+
     status: str
     created_at: datetime
 

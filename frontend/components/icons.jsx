@@ -61,3 +61,26 @@ export const Search = (p) => (
 export const Warning = (p) => (
   <Svg {...p}><path d="M12 3l9 16H3l9-16z" /><path d="M12 10v4" /><path d="M12 17h.01" /></Svg>
 );
+
+export function BlockSparkLogo({ className = "h-8 w-8" }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#00df9a" />
+          <stop offset="100%" stopColor="#029668" />
+        </linearGradient>
+      </defs>
+      {/* 3D Isometric Cube Outer Structure */}
+      {/* Top Face */}
+      <path d="M50 12 L82 28 L50 44 L18 28 Z" stroke="url(#logo-grad)" strokeWidth="5.5" strokeLinejoin="round" />
+      {/* Left Face */}
+      <path d="M18 28 V64 L50 80 V44 Z" stroke="url(#logo-grad)" strokeWidth="5.5" strokeLinejoin="round" />
+      {/* Right Face */}
+      <path d="M82 28 V64 L50 80" stroke="url(#logo-grad)" strokeWidth="5.5" strokeLinejoin="round" />
+      
+      {/* High-Contrast Central Lightning Spark Core */}
+      <path d="M50 24 L65 42 H52 L57 62 L36 44 H48 Z" fill="url(#logo-grad)" />
+    </svg>
+  );
+}

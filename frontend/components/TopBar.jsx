@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Shield, Link as LinkIcon, Activity, Logout } from "./icons";
+import { Shield, Link as LinkIcon, Activity, Logout, BlockSparkLogo } from "./icons";
 import { StatusDot, initials } from "./ui";
 
 function Clock() {
@@ -24,14 +24,15 @@ export default function TopBar({ username, sim, chain, onLogout }) {
       <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-5 py-3">
         {/* brand */}
         <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand/15 text-brand">
-            <Shield className="h-5 w-5" />
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand/10 text-brand border border-brand/20">
+            <BlockSparkLogo className="h-6.5 w-6.5" />
           </span>
           <div className="leading-tight">
-            <div className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+            <div className="flex items-center gap-1.5 text-sm font-bold tracking-tight text-ink">
               BlockSpark
+              <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded border border-brand/20 bg-brand/10 text-brand">v2.0</span>
             </div>
-            <div className="hidden text-[11px] text-faint sm:block">Insider Threat SOC</div>
+            <div className="hidden text-[10px] text-faint font-semibold sm:block">Security Console · Team BlockSpark</div>
           </div>
         </div>
 

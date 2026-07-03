@@ -16,11 +16,11 @@ from .models import Event, User
 
 ACTORS = [
     # username,           role,                  geo,             lat,      lon,      home_ip,     device
-    ("dbadmin_priya",     "database_admin",      "New York, US",  40.7128,  -74.0060, "10.0.1.5",  "dev-priya-01"),
-    ("teller_marcus",     "teller",              "Chicago, US",   41.8781,  -87.6298, "10.0.2.9",  "dev-marcus-01"),
-    ("analyst_sofia",     "risk_analyst",        "New York, US",  40.7128,  -74.0060, "10.0.1.22", "dev-sofia-01"),
-    ("sysops_ken",        "sysadmin",            "San Francisco, US", 37.7749, -122.4194, "10.0.3.7", "dev-ken-01"),
-    ("support_amina",     "customer_support",    "London, UK",    51.5074,  -0.1278,  "10.0.4.3",  "dev-amina-01"),
+    ("dbadmin_priya",     "database_admin",      "Pune, IN",      18.5204,  73.8567,  "10.0.1.5",  "dev-priya-01"),
+    ("teller_marcus",     "teller",              "Mumbai, IN",    19.0760,  72.8777,  "10.0.2.9",  "dev-marcus-01"),
+    ("analyst_sofia",     "risk_analyst",        "Pune, IN",      18.5204,  73.8567,  "10.0.1.22", "dev-sofia-01"),
+    ("sysops_ken",        "sysadmin",            "Bengaluru, IN", 12.9716,  77.5946,  "10.0.3.7",  "dev-ken-01"),
+    ("support_amina",     "customer_support",    "Hyderabad, IN", 17.3850,  78.4867,  "10.0.4.3",  "dev-amina-01"),
 ]
 
 NORMAL_ACTIONS = ["login", "record_view", "db_query", "logout"]
@@ -28,19 +28,29 @@ NORMAL_ACTIONS = ["login", "record_view", "db_query", "logout"]
 
 def seed_admin(db):
     admin = db.query(User).filter(User.username == settings.ADMIN_USERNAME).first()
+    from .auth import generate_totp_secret
     if admin is None:
+        mfa_sec = "JBSWY3DPEHPK3PXP"  # Standard test secret 'JBSWY3DPEHPK3PXP' for easier testing/verification
         admin = User(
             username=settings.ADMIN_USERNAME,
             email=settings.ADMIN_EMAIL,
             hashed_password=hash_password(settings.ADMIN_PASSWORD),
             role="admin",
             is_simulated=False,
+            mfa_enabled=True,
+            mfa_secret=mfa_sec,
         )
         db.add(admin)
         db.commit()
-        print(f"[seed] created admin '{settings.ADMIN_USERNAME}' (password from .env)")
+        print(f"[seed] created admin '{settings.ADMIN_USERNAME}' (password from .env) with MFA enabled")
+        print(f"[seed] admin MFA secret key (use for Google Authenticator): {mfa_sec}")
     else:
-        print(f"[seed] admin '{settings.ADMIN_USERNAME}' already exists")
+        if not admin.mfa_secret:
+            admin.mfa_secret = "JBSWY3DPEHPK3PXP"
+            admin.mfa_enabled = True
+            db.commit()
+            print(f"[seed] updated admin '{settings.ADMIN_USERNAME}' to enable MFA")
+        print(f"[seed] admin '{settings.ADMIN_USERNAME}' already exists. MFA secret: {admin.mfa_secret}")
     return admin
 
 

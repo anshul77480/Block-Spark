@@ -45,8 +45,8 @@ export default function RiskTimeline({ events = [] }) {
         <AreaChart data={data} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
           <defs>
             <linearGradient id="riskArea" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#4f8cff" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#4f8cff" stopOpacity={0} />
+              <stop offset="0%" stopColor="#00df9a" stopOpacity={0.2} />
+              <stop offset="100%" stopColor="#00df9a" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#1a2130" vertical={false} />
@@ -58,10 +58,10 @@ export default function RiskTimeline({ events = [] }) {
           <Area
             type="monotone"
             dataKey="score"
-            stroke="#4f8cff"
+            stroke="#00df9a"
             strokeWidth={2}
             fill="url(#riskArea)"
-            dot={{ r: 2, fill: "#4f8cff" }}
+            dot={{ r: 2, fill: "#00df9a", strokeWidth: 0 }}
             activeDot={{ r: 4 }}
             isAnimationActive={false}
           />

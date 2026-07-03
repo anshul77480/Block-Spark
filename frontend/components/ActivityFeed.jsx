@@ -52,7 +52,11 @@ export default function ActivityFeed({ events = [], selectedId, onSelect }) {
             </span>
             <span className="flex shrink-0 flex-col items-end gap-1">
               <span className="text-[10px] text-faint">{relativeTime(e.timestamp)}</span>
-              {e.anchored ? (
+              {e.tampered ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-risk-high animate-pulse">
+                  ⚠️ TAMPERED
+                </span>
+              ) : e.anchored ? (
                 <span className="inline-flex items-center gap-1 text-[10px] text-brand">
                   <LinkIcon className="h-3 w-3" /> anchored
                 </span>
