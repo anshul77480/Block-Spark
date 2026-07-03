@@ -15,7 +15,10 @@ import {
   logout,
   sessionAction,
 } from "@/lib/api";
-import Panel from "@/components/Panel";
+import { Card, Badge, Skeleton } from "@/components/ui";
+import { toast } from "@/components/toast";
+import { Activity, Search, Bell, Users, Warning } from "@/components/icons";
+import TopBar from "@/components/TopBar";
 import StatsBar from "@/components/StatsBar";
 import ActivityFeed from "@/components/ActivityFeed";
 import AlertsPanel from "@/components/AlertsPanel";
@@ -36,6 +39,7 @@ export default function Dashboard() {
   const [chain, setChain] = useState({});
   const [selectedId, setSelectedId] = useState(null);
   const [username, setUsername] = useState("");
+  const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState("");
   const selectedRef = useRef(null);
 
@@ -64,13 +68,14 @@ export default function Dashboard() {
       setSim(si);
       setChain(ch);
       setErr("");
-      // auto-select newest event if nothing selected
       if (selectedRef.current == null && ev.length) {
         selectedRef.current = ev[0].id;
         setSelectedId(ev[0].id);
       }
     } catch (e) {
       setErr(e?.response?.data?.detail || e.message || "Request failed");
+    } finally {
+      setLoaded(true);
     }
   }, []);
 
@@ -87,20 +92,40 @@ export default function Dashboard() {
   };
 
   const onStart = async () => {
-    await controlSimulator("start", 2.0, 0.4);
-    refresh();
+    try {
+      await controlSimulator("start", 2.0, 0.4);
+      toast("Simulator started");
+      refresh();
+    } catch {
+      toast("Failed to start simulator", "error");
+    }
   };
   const onStop = async () => {
-    await controlSimulator("stop");
-    refresh();
+    try {
+      await controlSimulator("stop");
+      toast("Simulator stopped");
+      refresh();
+    } catch {
+      toast("Failed to stop simulator", "error");
+    }
   };
   const onAck = async (id) => {
-    await acknowledgeAlert(id);
-    refresh();
+    try {
+      await acknowledgeAlert(id);
+      toast("Alert acknowledged");
+      refresh();
+    } catch {
+      toast("Failed to acknowledge", "error");
+    }
   };
   const onSessionAction = async (session_id, action) => {
-    await sessionAction(session_id, action, `${action} by ${username}`);
-    refresh();
+    try {
+      await sessionAction(session_id, action, `${action} by ${username}`);
+      toast(action === "block" ? "Session blocked" : "Session unblocked");
+      refresh();
+    } catch {
+      toast(`Failed to ${action} session`, "error");
+    }
   };
   const onLogout = () => {
     logout();
@@ -110,86 +135,67 @@ export default function Dashboard() {
   const selectedEvent = events.find((e) => e.id === selectedId) || null;
 
   return (
-    <main className="mx-auto max-w-[1500px] px-4 py-4">
-      {/* header */}
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🛡️</span>
-          <div>
-            <h1 className="text-lg font-semibold text-slate-100">Insider Threat SOC</h1>
-            <p className="text-xs text-slate-500">Detection &amp; Response Console</p>
+    <div className="min-h-screen">
+      <TopBar username={username} sim={sim} chain={chain} onLogout={onLogout} />
+
+      <main className="mx-auto max-w-[1600px] space-y-4 px-5 py-5">
+        {err && (
+          <div className="animate-fade-in flex items-center gap-2 rounded-xl border border-risk-high/40 bg-risk-high/10 px-3.5 py-2.5 text-sm text-risk-high">
+            <Warning className="h-4 w-4" /> {err}
+          </div>
+        )}
+
+        <SimulatorControls sim={sim} chain={chain} onStart={onStart} onStop={onStop} />
+
+        <StatsBar stats={stats} loading={!loaded} />
+
+        {/* main grid */}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+          {/* left: activity feed */}
+          <div className="xl:col-span-3">
+            <Card
+              title="Activity feed"
+              icon={Activity}
+              right={<Badge tone="brand">{events.length}</Badge>}
+            >
+              {!loaded ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14" />)}
+                </div>
+              ) : (
+                <ActivityFeed events={events} selectedId={selectedId} onSelect={onSelect} />
+              )}
+            </Card>
+          </div>
+
+          {/* middle: detail + timeline */}
+          <div className="space-y-4 xl:col-span-6">
+            <Card title="Event analysis" icon={Search}
+              subtitle={selectedEvent ? `Event #${selectedEvent.id}` : "Select an event"}>
+              <EventDetail event={selectedEvent} />
+            </Card>
+            <Card title="Risk timeline" icon={Activity} subtitle="Score per event · thresholds at 40 / 70">
+              <RiskTimeline events={events} />
+            </Card>
+          </div>
+
+          {/* right: alerts + sessions */}
+          <div className="space-y-4 xl:col-span-3">
+            <Card title="Alerts" icon={Bell}
+              right={<Badge tone="medium">{alerts.length} open</Badge>}>
+              <AlertsPanel alerts={alerts} onAck={onAck} onSelectEvent={onSelect} />
+            </Card>
+            <Card title="Sessions & response" icon={Users}>
+              <SessionsPanel sessions={sessions} onAction={onSessionAction} />
+            </Card>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="text-slate-400">
-            Signed in as <span className="font-medium text-slate-200">{username}</span>
-          </span>
-          <button
-            onClick={onLogout}
-            className="rounded-lg border border-soc-border px-3 py-1.5 text-slate-300 hover:bg-white/5"
-          >
-            Logout
-          </button>
-        </div>
-      </header>
 
-      {err && (
-        <div className="mb-3 rounded-lg border border-risk-high/40 bg-risk-high/10 px-3 py-2 text-sm text-risk-high">
-          {err}
-        </div>
-      )}
-
-      <div className="mb-4">
-        <Panel title="Controls">
-          <SimulatorControls sim={sim} chain={chain} onStart={onStart} onStop={onStop} />
-        </Panel>
-      </div>
-
-      <div className="mb-4">
-        <StatsBar stats={stats} />
-      </div>
-
-      {/* main grid */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        {/* left: activity feed */}
-        <div className="xl:col-span-3">
-          <Panel title="Activity feed">
-            <ActivityFeed events={events} selectedId={selectedId} onSelect={onSelect} />
-          </Panel>
-        </div>
-
-        {/* middle: detail + timeline */}
-        <div className="space-y-4 xl:col-span-6">
-          <Panel title="Event analysis">
-            <EventDetail event={selectedEvent} />
-          </Panel>
-          <Panel title="Risk timeline">
-            <RiskTimeline events={events} />
-          </Panel>
-        </div>
-
-        {/* right: alerts + sessions */}
-        <div className="space-y-4 xl:col-span-3">
-          <Panel
-            title="Alerts"
-            right={
-              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-400">
-                {alerts.length} open
-              </span>
-            }
-          >
-            <AlertsPanel alerts={alerts} onAck={onAck} onSelectEvent={onSelect} />
-          </Panel>
-          <Panel title="Sessions & response">
-            <SessionsPanel sessions={sessions} onAction={onSessionAction} />
-          </Panel>
-        </div>
-      </div>
-
-      <footer className="mt-6 text-center text-xs text-slate-600">
-        POC · rule engine + Isolation Forest · SHAP + LLM explanations · SHA-256 anchored to local
-        chain
-      </footer>
-    </main>
+        <footer className="pt-2 pb-6 text-center text-xs text-faint">
+          Rule engine + Isolation Forest (22 features) · SHAP + LLM explanations ·
+          SHA-256 anchored to local chain · proof of concept
+        </footer>
+      </main>
+    </div>
   );
 }

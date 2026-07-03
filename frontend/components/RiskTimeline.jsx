@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -10,41 +10,62 @@ import {
   ReferenceLine,
   CartesianGrid,
 } from "recharts";
+import { EmptyState } from "./ui";
+import { Activity } from "./icons";
+
+function TooltipBox({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  const c = p.band === "high" ? "#f5566c" : p.band === "medium" ? "#fbbf24" : "#34d399";
+  return (
+    <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs shadow-card">
+      <div className="font-medium text-ink">{p.user}</div>
+      <div className="text-faint">Event #{p.id}</div>
+      <div className="mt-1 flex items-center gap-1.5">
+        <span className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />
+        <span style={{ color: c }} className="font-semibold">{p.score}</span>
+        <span className="text-faint">· {p.band}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function RiskTimeline({ events = [] }) {
-  // oldest -> newest for a left-to-right timeline
   const data = [...events]
     .reverse()
     .map((e) => ({ id: e.id, score: e.risk_score, user: e.username, band: e.band }));
 
+  if (!data.length) {
+    return <EmptyState icon={Activity} title="No activity yet" hint="Start the simulator to see the risk timeline." />;
+  }
+
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e2739" />
-          <XAxis dataKey="id" tick={{ fill: "#64748b", fontSize: 11 }} />
-          <YAxis domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 11 }} />
-          <Tooltip
-            contentStyle={{
-              background: "#111725",
-              border: "1px solid #1e2739",
-              borderRadius: 8,
-              color: "#e2e8f0",
-            }}
-            labelFormatter={(id) => `Event #${id}`}
-            formatter={(v, _n, p) => [`${v} (${p.payload.band})`, p.payload.user]}
-          />
-          <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="4 4" />
-          <ReferenceLine y={40} stroke="#f59e0b" strokeDasharray="4 4" />
-          <Line
+        <AreaChart data={data} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+          <defs>
+            <linearGradient id="riskArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4f8cff" stopOpacity={0.35} />
+              <stop offset="100%" stopColor="#4f8cff" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1a2130" vertical={false} />
+          <XAxis dataKey="id" tick={{ fill: "#5f6c82", fontSize: 11 }} tickLine={false} axisLine={{ stroke: "#232c3d" }} />
+          <YAxis domain={[0, 100]} tick={{ fill: "#5f6c82", fontSize: 11 }} tickLine={false} axisLine={false} />
+          <Tooltip content={<TooltipBox />} />
+          <ReferenceLine y={70} stroke="#f5566c" strokeDasharray="4 4" strokeOpacity={0.6} />
+          <ReferenceLine y={40} stroke="#fbbf24" strokeDasharray="4 4" strokeOpacity={0.6} />
+          <Area
             type="monotone"
             dataKey="score"
-            stroke="#38bdf8"
+            stroke="#4f8cff"
             strokeWidth={2}
-            dot={{ r: 2 }}
+            fill="url(#riskArea)"
+            dot={{ r: 2, fill: "#4f8cff" }}
+            activeDot={{ r: 4 }}
             isAnimationActive={false}
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );

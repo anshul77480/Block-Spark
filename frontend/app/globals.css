@@ -2,20 +2,73 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: dark;
+}
+
 html,
 body {
-  background-color: #0a0e17;
-  color: #e2e8f0;
+  background-color: #080b12;
+  color: #e6ebf4;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* subtle ambient background gradient for the whole app */
+body {
+  background-image:
+    radial-gradient(1200px 600px at 15% -10%, rgba(79, 140, 255, 0.10), transparent 60%),
+    radial-gradient(1000px 500px at 100% 0%, rgba(52, 211, 153, 0.06), transparent 55%);
+  background-attachment: fixed;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0e17;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e2739;
-  border-radius: 4px;
+  background: #263047;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #33405c;
+  background-clip: padding-box;
+}
+
+/* thin scrollbar utility for inner scroll areas */
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: #263047 transparent;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-border bg-surface shadow-card;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-white hover:bg-brand-soft;
+  }
+  .btn-ghost {
+    @apply btn border border-border text-muted hover:bg-white/5 hover:text-ink;
+  }
+  .input {
+    @apply w-full rounded-lg border border-border bg-base/60 px-3.5 py-2.5 text-ink placeholder:text-faint
+           outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-faint;
+  }
 }
