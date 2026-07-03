@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import RiskGauge from "./RiskGauge";
 import { causeBadge, shortHash, featureLabel, fmtTime } from "@/lib/format";
 import { Badge, CopyButton, EmptyState, initials } from "./ui";
-import { Search, Link as LinkIcon, Warning } from "./icons";
+import { Search, Link as LinkIcon, Warning, Shield } from "./icons";
+import { verifyOnChain } from "@/lib/api";
 
 function Bar({ value, max }) {
   const pct = Math.min(100, (Math.abs(value) / (max || 1)) * 100);
@@ -35,6 +37,31 @@ const causeToneClass = (cause) =>
   }[cause] || "border-border bg-white/5 text-muted");
 
 export default function EventDetail({ event }) {
+  const [verifying, setVerifying] = useState(false);
+  const [verifyData, setVerifyData] = useState(null);
+  const [verifyError, setVerifyError] = useState(null);
+
+  useEffect(() => {
+    setVerifyData(null);
+    setVerifyError(null);
+    setVerifying(false);
+  }, [event?.id]);
+
+  const handleVerify = async () => {
+    if (!event?.event_hash) return;
+    setVerifying(true);
+    setVerifyError(null);
+    setVerifyData(null);
+    try {
+      const data = await verifyOnChain(event.event_hash);
+      setVerifyData(data);
+    } catch (err) {
+      setVerifyError(err?.response?.data?.detail || "Verification failed");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   if (!event) {
     return (
       <EmptyState
@@ -90,6 +117,20 @@ export default function EventDetail({ event }) {
           <MetaRow label="Ticket">{event.matched_case_id || <span className="text-risk-medium">none</span>}</MetaRow>
         </div>
       </div>
+
+      {event.tampered && (
+        <div className="rounded-xl border border-risk-high/40 bg-risk-high/10 p-3.5 flex items-start gap-3">
+          <Warning className="h-5 w-5 text-risk-high shrink-0 mt-0.5 animate-pulse" />
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold text-risk-high uppercase tracking-wider flex items-center gap-1">
+              <span>⚠️ Local DB Tampering Detected</span>
+            </h4>
+            <p className="text-xs text-muted leading-relaxed font-semibold">
+              The local SQL database record for this log has been modified. The calculated SHA-256 hash of these fields does not match the immutable hash anchored on the blockchain ledger.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* explanation */}
       {event.explanation && (
@@ -154,8 +195,8 @@ export default function EventDetail({ event }) {
       )}
 
       {/* audit anchor */}
-      <div className="rounded-xl border border-border-soft bg-base/40 p-3.5">
-        <div className="mb-2 flex items-center justify-between">
+      <div className="rounded-xl border border-border-soft bg-base/40 p-3.5 space-y-3">
+        <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-faint">
             <LinkIcon className="h-3.5 w-3.5" /> Blockchain audit anchor
           </span>
@@ -165,7 +206,7 @@ export default function EventDetail({ event }) {
             <Badge tone="neutral">not anchored</Badge>
           )}
         </div>
-        <div className="space-y-1.5 font-mono text-[11px] text-muted">
+        <div className="space-y-1.5 font-mono text-[11px] text-muted border-b border-border-soft/60 pb-3">
           <div className="flex items-center justify-between gap-2">
             <span><span className="text-faint">hash </span>{shortHash(event.event_hash)}</span>
             <CopyButton value={event.event_hash} label="Copy event hash" />
@@ -175,7 +216,98 @@ export default function EventDetail({ event }) {
             <CopyButton value={event.anchor_tx} label="Copy tx hash" />
           </div>
         </div>
+
+        {event.anchored && (
+          <div className="space-y-2">
+            {!verifyData && !verifyError && (
+              <button
+                onClick={handleVerify}
+                disabled={verifying}
+                className="btn-primary w-full py-1.5 text-xs flex justify-center items-center gap-1 bg-brand/10 hover:bg-brand/20 text-brand border border-brand/20"
+              >
+                {verifying ? "Querying Ledger..." : "Verify Ledger Authenticity"}
+              </button>
+            )}
+
+            {verifyError && (
+              <div className="text-xs text-risk-high bg-risk-high/10 border border-risk-high/20 rounded-lg p-2 flex flex-col gap-1">
+                <span>⚠️ {verifyError}</span>
+                <button onClick={handleVerify} className="underline text-[10px] self-start">Retry</button>
+              </div>
+            )}
+
+            {verifyData && (
+              <div className="animate-fade-in text-xs bg-brand/5 border border-brand/20 rounded-lg p-2.5 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-brand font-semibold text-[10px] uppercase tracking-wider">
+                  <span>✓ Ledger Verified</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] font-mono text-muted">
+                  <span className="text-faint">Log Index:</span>
+                  <span className="text-right text-ink font-semibold">{verifyData.index}</span>
+                  <span className="text-faint">Block Num:</span>
+                  <span className="text-right text-ink font-semibold">#{verifyData.block_number}</span>
+                  <span className="text-faint">Timestamp:</span>
+                  <span className="text-right text-ink font-semibold">{new Date(verifyData.timestamp * 1000).toLocaleTimeString()}</span>
+                  <span className="text-faint">Recorder:</span>
+                  <span className="text-right text-ink truncate font-semibold" title={verifyData.recorder}>{shortHash(verifyData.recorder)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* QPC signature */}
+      {event.qpc_signature && (
+        <div className="rounded-xl border border-border-soft bg-base/40 p-3.5">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-soft">
+              <Shield className="h-3.5 w-3.5 text-brand" /> Quantum-Safe Signature (QPC)
+            </span>
+            {event.qpc_verified ? (
+              <Badge tone="brand">verified</Badge>
+            ) : (
+              <Badge tone="danger">failed verification</Badge>
+            )}
+          </div>
+          <div className="space-y-1.5 font-mono text-[11px] text-muted">
+            <div className="flex items-center justify-between gap-2">
+              <span>
+                <span className="text-faint">sig </span>
+                {(() => {
+                  try {
+                    const sig = JSON.parse(event.qpc_signature);
+                    if (sig.c !== undefined && sig.z !== undefined) {
+                      return `c: ${sig.c}, z[0]: ${sig.z[0]}... [ML-DSA Lattice Sig]`;
+                    }
+                    return shortHash(sig[0]) + `... [256-bit OTS]`;
+                  } catch (e) {
+                    return "Invalid signature data";
+                  }
+                })()}
+              </span>
+              <CopyButton value={event.qpc_signature} label="Copy full QPC signature" />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span>
+                <span className="text-faint">pub </span>
+                {(() => {
+                  try {
+                    const pub = JSON.parse(event.qpc_pubkey);
+                    if (pub.t !== undefined) {
+                      return `t[0]: ${pub.t[0]}... [Lattice Pub Vector]`;
+                    }
+                    return shortHash(pub.pk_0[0]) + `...`;
+                  } catch (e) {
+                    return "Invalid public key data";
+                  }
+                })()}
+              </span>
+              <CopyButton value={event.qpc_pubkey} label="Copy public key" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

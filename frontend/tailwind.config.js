@@ -18,15 +18,15 @@ module.exports = {
         ink: "#e6ebf4",
         muted: "#93a1b8",
         faint: "#5f6c82",
-        // brand
+        // brand (glowing neon mint)
         brand: {
-          DEFAULT: "#4f8cff",
-          soft: "#6ea0ff",
-          dim: "#2f5bd0",
+          DEFAULT: "#00df9a",
+          soft: "#3affc6",
+          dim: "#00a370",
         },
         // risk semantics
         risk: {
-          low: "#34d399",
+          low: "#00df9a",
           medium: "#fbbf24",
           high: "#f5566c",
         },
@@ -35,7 +35,7 @@ module.exports = {
           bg: "#080b12",
           panel: "#0f141f",
           border: "#232c3d",
-          accent: "#4f8cff",
+          accent: "#00df9a",
         },
       },
       fontFamily: {
@@ -51,7 +51,7 @@ module.exports = {
       },
       boxShadow: {
         card: "0 1px 2px rgba(0,0,0,0.4), 0 8px 24px -12px rgba(0,0,0,0.5)",
-        glow: "0 0 0 1px rgba(79,140,255,0.35), 0 0 24px -6px rgba(79,140,255,0.45)",
+        glow: "0 0 0 1px rgba(0,223,154,0.35), 0 0 24px -6px rgba(0,223,154,0.45)",
       },
       keyframes: {
         "fade-in": {

@@ -203,5 +203,52 @@ class Simulator:
                 "last_event": self.last_event,
             }
 
+    def trigger_scenario(self, db, scenario: str):
+        actors = self._actor_pool(db)
+        if not actors:
+            raise ValueError("No simulated actors seeded in DB")
+        
+        scenario_map = {
+            "exfil": self._malicious_exfil,
+            "destruction": self._malicious_destruction,
+            "compromised": self._compromised,
+            "negligent": self._negligent,
+        }
+        
+        if scenario not in scenario_map:
+            raise ValueError(f"Unknown scenario: {scenario}")
+            
+        generator = scenario_map[scenario]
+        
+        target_username_map = {
+            "exfil": "dbadmin_priya",
+            "destruction": "sysops_ken",
+            "compromised": "analyst_sofia",
+            "negligent": "support_amina",
+        }
+        
+        target_user = None
+        target_name = target_username_map.get(scenario)
+        if target_name:
+            target_user = db.query(User).filter(User.username == target_name).first()
+            
+        if not target_user:
+            target_user = random.choice(actors)
+            
+        raw = generator(target_user)
+        event = ingest_event(db, raw)
+        
+        with self._lock:
+            self.generated += 1
+            self.last_event = {
+                "id": event.id,
+                "username": event.username,
+                "action_type": event.action_type,
+                "risk_score": event.risk_score,
+                "band": event.band,
+                "cause": event.cause,
+            }
+        return event
+
 
 simulator = Simulator()

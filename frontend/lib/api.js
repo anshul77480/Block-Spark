@@ -26,11 +26,13 @@ api.interceptors.response.use(
 );
 
 // ---- auth ----
-export async function login(username, password) {
-  const { data } = await api.post("/auth/login", { username, password });
-  localStorage.setItem("token", data.access_token);
-  localStorage.setItem("role", data.role);
-  localStorage.setItem("username", data.username);
+export async function login(username, password, mfa_code = null) {
+  const { data } = await api.post("/auth/login", { username, password, mfa_code });
+  if (data.access_token) {
+    localStorage.setItem("token", data.access_token);
+    localStorage.setItem("role", data.role);
+    localStorage.setItem("username", data.username);
+  }
   return data;
 }
 
@@ -63,5 +65,20 @@ export const controlSimulator = (action, rate_seconds = 2.0, threat_probability 
     .post("/simulator/control", { action, rate_seconds, threat_probability })
     .then((r) => r.data);
 
+export const triggerScenario = (scenario) =>
+  api.post(`/simulator/trigger-scenario/${scenario}`).then((r) => r.data);
+
 export const sessionAction = (session_id, action, reason) =>
   api.post("/sessions/action", { session_id, action, reason }).then((r) => r.data);
+
+export const verifyOnChain = (hash) =>
+  api.get(`/chain/verify/${hash}`).then((r) => r.data);
+
+export const verifyPayloadOnChain = (payload) =>
+  api.post("/chain/verify-payload", payload).then((r) => r.data);
+
+export const tamperEventLog = (event_id) =>
+  api.post(`/events/${event_id}/tamper`).then((r) => r.data);
+
+export const getChainRecords = () =>
+  api.get("/chain/records").then((r) => r.data);

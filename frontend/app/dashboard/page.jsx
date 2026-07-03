@@ -14,6 +14,7 @@ import {
   getToken,
   logout,
   sessionAction,
+  triggerScenario,
 } from "@/lib/api";
 import { Card, Badge, Skeleton } from "@/components/ui";
 import { toast } from "@/components/toast";
@@ -26,6 +27,8 @@ import EventDetail from "@/components/EventDetail";
 import SessionsPanel from "@/components/SessionsPanel";
 import SimulatorControls from "@/components/SimulatorControls";
 import RiskTimeline from "@/components/RiskTimeline";
+import LedgerPanel from "@/components/LedgerPanel";
+import TamperSandbox from "@/components/TamperSandbox";
 
 const POLL_MS = 2500;
 
@@ -41,6 +44,7 @@ export default function Dashboard() {
   const [username, setUsername] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState("");
+  const [activeTab, setActiveTab] = useState("analysis");
   const selectedRef = useRef(null);
 
   useEffect(() => {
@@ -109,6 +113,19 @@ export default function Dashboard() {
       toast("Failed to stop simulator", "error");
     }
   };
+  const onTrigger = async (scenario) => {
+    try {
+      toast(`Injecting ${scenario} threat scenario...`);
+      const event = await triggerScenario(scenario);
+      toast(`Scenario ingested! Risk score: ${event.risk_score}%`);
+      refresh();
+      if (event && event.id) {
+        setSelectedId(event.id);
+      }
+    } catch (e) {
+      toast(e?.response?.data?.detail || "Failed to trigger scenario", "error");
+    }
+  };
   const onAck = async (id) => {
     try {
       await acknowledgeAlert(id);
@@ -145,7 +162,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        <SimulatorControls sim={sim} chain={chain} onStart={onStart} onStop={onStop} />
+        <SimulatorControls sim={sim} chain={chain} onStart={onStart} onStop={onStop} onTrigger={onTrigger} />
 
         <StatsBar stats={stats} loading={!loaded} />
 
@@ -170,9 +187,58 @@ export default function Dashboard() {
 
           {/* middle: detail + timeline */}
           <div className="space-y-4 xl:col-span-6">
-            <Card title="Event analysis" icon={Search}
-              subtitle={selectedEvent ? `Event #${selectedEvent.id}` : "Select an event"}>
-              <EventDetail event={selectedEvent} />
+            <Card
+              title={
+                activeTab === "analysis" ? "Event analysis" : 
+                activeTab === "ledger" ? "Blockchain Ledger" : "Tamper Sandbox"
+              }
+              icon={Search}
+              subtitle={
+                activeTab === "analysis" ? (selectedEvent ? `Event #${selectedEvent.id}` : "Select an event") :
+                activeTab === "ledger" ? "Audit log records fetched directly from contract state" : "Simulate DB log modification & blockchain validation"
+              }
+              right={
+                <div className="flex bg-surface-2 rounded-lg p-0.5 border border-border-soft">
+                  <button
+                    onClick={() => setActiveTab("analysis")}
+                    className={`px-3 py-1 text-xs rounded-md font-medium transition ${
+                      activeTab === "analysis"
+                        ? "bg-brand/10 text-brand border border-brand/20"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    Analysis
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("ledger")}
+                    className={`px-3 py-1 text-xs rounded-md font-medium transition ${
+                      activeTab === "ledger"
+                        ? "bg-brand/10 text-brand border border-brand/20"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    Ledger Log
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("tamper")}
+                    className={`px-3 py-1 text-xs rounded-md font-medium transition ${
+                      activeTab === "tamper"
+                        ? "bg-brand/10 text-brand border border-brand/20"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    Tamper Sandbox
+                  </button>
+                </div>
+              }
+            >
+              {activeTab === "analysis" ? (
+                <EventDetail event={selectedEvent} />
+              ) : activeTab === "ledger" ? (
+                <LedgerPanel />
+              ) : (
+                <TamperSandbox event={selectedEvent} onRefresh={() => refresh()} />
+              )}
             </Card>
             <Card title="Risk timeline" icon={Activity} subtitle="Score per event · thresholds at 40 / 70">
               <RiskTimeline events={events} />
@@ -191,9 +257,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <footer className="pt-2 pb-6 text-center text-xs text-faint">
-          Rule engine + Isolation Forest (22 features) · SHAP + LLM explanations ·
-          SHA-256 anchored to local chain · proof of concept
+        <footer className="pt-6 pb-4 border-t border-border/40 mt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-faint font-semibold tracking-wide uppercase gap-2">
+          <span>© 2026 BlockSpark · Developed by Team BlockSpark for FinSpark&apos;26</span>
+          <span className="hidden md:inline">ML Behavior Engine · Quantum-Safe Core · Immutable Blockchain Logs</span>
         </footer>
       </main>
     </div>

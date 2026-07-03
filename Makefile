@@ -125,7 +125,8 @@ health: ## Curl the backend health endpoint
 
 .PHONY: stats
 stats: ## Show dashboard stats (events by band, causes, blocked, anchored)
-	@TOK=$$(curl -s -X POST $(API)/auth/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])"); \
+	@MFA=$$(python3 -c "import hmac, hashlib, time, struct, base64; key = base64.b32decode('JBSWY3DPEHPK3PXP'); counter = int(time.time()) // 30; h = hmac.new(key, struct.pack('>Q', counter), hashlib.sha1).digest(); offset = h[-1] & 0x0f; print(f'{(struct.unpack(\">I\", h[offset:offset+4])[0] & 0x7fffffff) % 1000000:06d}')"); \
+	TOK=$$(curl -s -X POST $(API)/auth/login -H 'Content-Type: application/json' -d "{\"username\":\"admin\",\"password\":\"admin123\",\"mfa_code\":\"$$MFA\"}" | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])"); \
 	curl -s $(API)/stats -H "Authorization: Bearer $$TOK" | python3 -m json.tool
 
 .PHONY: logs
@@ -138,13 +139,15 @@ logs: ## Tail the setup.sh service logs
 
 .PHONY: sim-start
 sim-start: ## Start the activity simulator (RATE=secs THREAT=0..1)
-	@TOK=$$(curl -s -X POST $(API)/auth/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])"); \
+	@MFA=$$(python3 -c "import hmac, hashlib, time, struct, base64; key = base64.b32decode('JBSWY3DPEHPK3PXP'); counter = int(time.time()) // 30; h = hmac.new(key, struct.pack('>Q', counter), hashlib.sha1).digest(); offset = h[-1] & 0x0f; print(f'{(struct.unpack(\">I\", h[offset:offset+4])[0] & 0x7fffffff) % 1000000:06d}')"); \
+	TOK=$$(curl -s -X POST $(API)/auth/login -H 'Content-Type: application/json' -d "{\"username\":\"admin\",\"password\":\"admin123\",\"mfa_code\":\"$$MFA\"}" | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])"); \
 	curl -s -X POST $(API)/simulator/control -H "Authorization: Bearer $$TOK" -H 'Content-Type: application/json' \
 	  -d '{"action":"start","rate_seconds":$(or $(RATE),1.0),"threat_probability":$(or $(THREAT),0.4)}'; echo
 
 .PHONY: sim-stop
 sim-stop: ## Stop the activity simulator
-	@TOK=$$(curl -s -X POST $(API)/auth/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])"); \
+	@MFA=$$(python3 -c "import hmac, hashlib, time, struct, base64; key = base64.b32decode('JBSWY3DPEHPK3PXP'); counter = int(time.time()) // 30; h = hmac.new(key, struct.pack('>Q', counter), hashlib.sha1).digest(); offset = h[-1] & 0x0f; print(f'{(struct.unpack(\">I\", h[offset:offset+4])[0] & 0x7fffffff) % 1000000:06d}')"); \
+	TOK=$$(curl -s -X POST $(API)/auth/login -H 'Content-Type: application/json' -d "{\"username\":\"admin\",\"password\":\"admin123\",\"mfa_code\":\"$$MFA\"}" | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])"); \
 	curl -s -X POST $(API)/simulator/control -H "Authorization: Bearer $$TOK" -H 'Content-Type: application/json' -d '{"action":"stop"}'; echo
 
 ## ----------------------------------------------------------------------------

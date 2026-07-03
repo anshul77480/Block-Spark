@@ -28,10 +28,10 @@ export function Card({ title, subtitle, icon: Icon, right, children, className =
 }
 
 const TONES = {
-  low: "border-risk-low/35 bg-risk-low/10 text-risk-low",
-  medium: "border-risk-medium/35 bg-risk-medium/10 text-risk-medium",
-  high: "border-risk-high/35 bg-risk-high/10 text-risk-high",
-  brand: "border-brand/35 bg-brand/10 text-brand",
+  low: "border-risk-low/20 bg-risk-low/10 text-risk-low shadow-[0_0_8px_rgba(52,211,153,0.08)]",
+  medium: "border-risk-medium/20 bg-risk-medium/10 text-risk-medium shadow-[0_0_8px_rgba(251,191,36,0.08)]",
+  high: "border-risk-high/20 bg-risk-high/10 text-risk-high shadow-[0_0_8px_rgba(245,86,108,0.08)]",
+  brand: "border-brand/20 bg-brand/10 text-brand shadow-[0_0_8px_rgba(79,140,255,0.08)]",
   neutral: "border-border bg-white/5 text-muted",
 };
 

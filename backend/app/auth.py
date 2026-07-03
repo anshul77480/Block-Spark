@@ -62,3 +62,52 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
             detail="Admin role required for this action",
         )
     return user
+
+
+# ---- Multi-Factor Authentication (MFA / 2FA) helpers ----
+import base64
+import hashlib
+import hmac
+import secrets
+import struct
+import time
+
+
+def generate_totp_secret() -> str:
+    """Generate a standard 16-character base32 secret key."""
+    base32_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+    return "".join(secrets.choice(base32_alphabet) for _ in range(16))
+
+
+def verify_totp(secret: str, code: str, window: int = 1) -> bool:
+    """Verify a TOTP 6-digit code against a base32-encoded secret.
+
+    Supports a window of +/- 30s to handle minor client/server clock drifts.
+    """
+    if not secret or not code:
+        return False
+    try:
+        secret = secret.strip().replace(" ", "")
+        missing_padding = len(secret) % 8
+        if missing_padding:
+            secret += "=" * (8 - missing_padding)
+        key = base64.b32decode(secret, casefold=True)
+
+        current_time = int(time.time())
+        time_step = 30
+
+        for w in range(-window, window + 1):
+            counter = (current_time // time_step) + w
+            counter_bytes = struct.pack(">Q", counter)
+
+            h = hmac.new(key, counter_bytes, hashlib.sha1).digest()
+            offset = h[-1] & 0x0F
+            truncated_hash = struct.unpack(">I", h[offset : offset + 4])[0] & 0x7FFFFFFF
+            computed_code = f"{truncated_hash % 1000000:06d}"
+
+            if computed_code == code:
+                return True
+        return False
+    except Exception:
+        return False
+

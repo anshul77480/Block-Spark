@@ -161,6 +161,22 @@ def ingest_event(db: Session, raw: dict, enforce_block: bool = True) -> Event:
     event.anchor_tx = anchor["anchor_tx"]
     event.anchored = anchor["anchored"]
 
+    # --- QPC (Quantum-Proof Cryptography) Signing ---
+    try:
+        from .qpc import get_system_qpc_keypair, mldsa_sign, mldsa_verify
+        import json
+
+        qpc_sk, qpc_pk = get_system_qpc_keypair()
+        hash_bytes = bytes.fromhex(event.event_hash)
+        qpc_sig = mldsa_sign(hash_bytes, qpc_sk)
+        
+        event.qpc_signature = json.dumps(qpc_sig)
+        event.qpc_pubkey = json.dumps(qpc_pk)
+        event.qpc_verified = mldsa_verify(hash_bytes, qpc_sig, qpc_pk)
+    except Exception as e:
+        # Fallback or logging if signing fails (should not fail under normal conditions)
+        event.qpc_verified = False
+
     # --- risk-based response ---
     if band == "medium":
         _raise_alert(db, event, sess)
@@ -195,6 +211,9 @@ def _raise_alert(db: Session, event: Event, sess: SessionState):
         risk_score=event.risk_score,
         message=msg,
         recommended_action=event.recommended_action,
+        qpc_signature=event.qpc_signature,
+        qpc_pubkey=event.qpc_pubkey,
+        qpc_verified=event.qpc_verified,
         status="open",
     )
     db.add(alert)

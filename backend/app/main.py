@@ -83,8 +83,24 @@ def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
     user = authenticate_user(db, req.username, req.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if user.mfa_enabled:
+        from .auth import verify_totp
+        if not req.mfa_code:
+            return schemas.TokenResponse(
+                mfa_required=True,
+                username=user.username
+            )
+        if not verify_totp(user.mfa_secret, req.mfa_code):
+            raise HTTPException(status_code=401, detail="Invalid 2FA code")
+            
     token = create_access_token(user.username, user.role)
-    return schemas.TokenResponse(access_token=token, role=user.role, username=user.username)
+    return schemas.TokenResponse(
+        access_token=token, 
+        role=user.role, 
+        username=user.username,
+        mfa_required=False
+    )
 
 
 @app.get("/me", response_model=schemas.UserOut)
@@ -105,6 +121,16 @@ def simulator_control(req: schemas.SimulatorControl, _: User = Depends(require_a
 @app.get("/simulator/status")
 def simulator_status(_: User = Depends(get_current_user)):
     return simulator.status()
+
+
+@app.post("/simulator/trigger-scenario/{scenario}", response_model=schemas.ScoredEvent)
+def trigger_sim_scenario(scenario: str, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+    try:
+        return simulator.trigger_scenario(db, scenario)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except SessionBlockedError as e:
+        raise HTTPException(status_code=423, detail=str(e))
 
 
 # ---------------- ingestion ----------------
@@ -137,6 +163,23 @@ def get_event(event_id: int, _: User = Depends(get_current_user), db: Session = 
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     return event
+
+
+@app.post("/events/{event_id}/tamper")
+def tamper_event(event_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Corrupt columns directly in database
+    event.username = "root_hacked"
+    event.record_count = 999999
+    event.bytes_transferred = 500000000
+    event.geo = "Moscow, RU"
+    
+    db.commit()
+    db.refresh(event)
+    return {"status": "tampered", "event_id": event.id}
 
 
 # ---------------- alerts ----------------
@@ -191,6 +234,112 @@ def chain_status(_: User = Depends(get_current_user)):
         "rpc_url": chain.w3.provider.endpoint_uri if chain.w3 else None,
         "total_records": chain.total_records(),
     }
+
+
+@app.get("/chain/verify/{event_hash}")
+def verify_on_chain(event_hash: str, _: User = Depends(get_current_user)):
+    chain = get_chain()
+    if chain.status != "connected":
+        raise HTTPException(status_code=503, detail="Blockchain node not connected")
+    try:
+        from web3 import Web3
+        hash_bytes = Web3.to_bytes(hexstr="0x" + event_hash)
+        event_filter = chain.contract.events.EventAnchored.create_filter(
+            from_block=0,
+            argument_filters={"eventHash": hash_bytes}
+        )
+        logs = event_filter.get_all_entries()
+        if not logs:
+            return {"verified": False, "message": "Hash not found on-chain"}
+        
+        log_entry = logs[0]
+        block_num = log_entry["blockNumber"]
+        block = chain.w3.eth.get_block(block_num)
+        
+        tx_hash = log_entry["transactionHash"].hex()
+        if not tx_hash.startswith("0x"):
+            tx_hash = "0x" + tx_hash
+
+        return {
+            "verified": True,
+            "index": log_entry["args"]["index"],
+            "block_number": block_num,
+            "transaction_hash": tx_hash,
+            "recorder": log_entry["args"]["recorder"],
+            "timestamp": block["timestamp"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Verification failed: {e}")
+
+
+@app.post("/chain/verify-payload")
+def verify_payload_on_chain(payload: dict, _: User = Depends(get_current_user)):
+    chain = get_chain()
+    if chain.status != "connected":
+        raise HTTPException(status_code=503, detail="Blockchain node not connected")
+    try:
+        from .chain import canonical_hash
+        from web3 import Web3
+        
+        h = canonical_hash(payload)
+        hash_bytes = Web3.to_bytes(hexstr="0x" + h)
+        
+        event_filter = chain.contract.events.EventAnchored.create_filter(
+            from_block=0,
+            argument_filters={"eventHash": hash_bytes}
+        )
+        logs = event_filter.get_all_entries()
+        
+        if not logs:
+            return {
+                "verified": False,
+                "event_hash": h,
+                "message": "Verification failed: Hash mismatch. This exact payload has been tampered with or does not exist."
+            }
+            
+        log_entry = logs[0]
+        block_num = log_entry["blockNumber"]
+        block = chain.w3.eth.get_block(block_num)
+        tx_hash = log_entry["transactionHash"].hex()
+        if not tx_hash.startswith("0x"):
+            tx_hash = "0x" + tx_hash
+            
+        return {
+            "verified": True,
+            "event_hash": h,
+            "block_number": block_num,
+            "transaction_hash": tx_hash,
+            "timestamp": block["timestamp"],
+            "message": "Verification successful: Hash matches the anchored transaction block."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Verification failed: {e}")
+
+
+@app.get("/chain/records")
+def get_chain_records(_: User = Depends(get_current_user)):
+    chain = get_chain()
+    if chain.status != "connected":
+        raise HTTPException(status_code=503, detail="Blockchain node not connected")
+    try:
+        total = chain.total_records()
+        records = []
+        for i in range(total):
+            event_hash, timestamp, recorder, metadata = chain.contract.functions.getRecord(i).call()
+            # If event_hash is bytes (which it is as bytes32), convert to hex string
+            hash_str = event_hash.hex() if isinstance(event_hash, bytes) else event_hash
+            if hash_str.startswith("0x"):
+                hash_str = hash_str[2:]
+            records.append({
+                "index": i,
+                "event_hash": hash_str,
+                "timestamp": int(timestamp),
+                "recorder": recorder,
+                "metadata": metadata
+            })
+        return records
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch records: {e}")
 
 
 # ---------------- dashboard stats ----------------
