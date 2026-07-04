@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.20;
 
 /// @title AuditLog
 /// @notice Immutable audit log for insider-threat events. Stores a SHA-256 hash
