@@ -20,6 +20,7 @@ if (-not (Test-Path $PID_DIR)) { New-Item -ItemType Directory -Path $PID_DIR | O
 $BACKEND_PORT = 8000
 $FRONTEND_PORT = 3000
 $RPC_PORT = 8545
+$maxWait = 60
 
 # Colors & Logging helpers
 function Log-Info($msg) {
@@ -133,6 +134,21 @@ if ($InstallOnly) {
     exit 0
 }
 
+# Load .env configuration to check if running local or remote node
+$ENV_PATH = Join-Path $ROOT "backend\.env"
+$rpcUrl = "http://127.0.0.1:8545"
+$contractAddr = ""
+if (Test-Path $ENV_PATH) {
+    Get-Content $ENV_PATH | ForEach-Object {
+        if ($_ -match "^\s*RPC_URL\s*=\s*(.*)") {
+            $rpcUrl = $Matches[1].Trim()
+        }
+        if ($_ -match "^\s*CONTRACT_ADDRESS\s*=\s*(.*)") {
+            $contractAddr = $Matches[1].Trim()
+        }
+    }
+}
+
 # Start services
 Stop-Services
 Start-Sleep -Seconds 2
@@ -149,36 +165,46 @@ function Test-PortOpen($port) {
     }
 }
 
-# 1. Start Hardhat Node
-Log-Info "Starting Hardhat node on port $RPC_PORT..."
-Push-Location blockchain
-$chainProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npx hardhat node" -NoNewWindow -PassThru -RedirectStandardOutput "$LOG_DIR\chain.log" -RedirectStandardError "$LOG_DIR\chain.err.log"
-$chainProcess.Id | Out-File "$PID_DIR\chain.pid"
-Pop-Location
+$isLocalRpc = ($rpcUrl -like "*127.0.0.1*" -or $rpcUrl -like "*localhost*")
 
-# Wait for RPC node
-Log-Info "Waiting for Hardhat node to accept connections..."
-$maxWait = 60
-$waited = 0
-while (-not (Test-PortOpen $RPC_PORT)) {
-    Start-Sleep -Seconds 1
-    $waited++
-    if ($waited -ge $maxWait) {
-        Log-Die "Hardhat node did not start within $maxWait seconds. Check logs\chain.log and logs\chain.err.log"
+if ($isLocalRpc) {
+    # 1. Start Hardhat Node
+    Log-Info "Starting Hardhat node on port $RPC_PORT..."
+    Push-Location blockchain
+    $chainProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npx hardhat node" -NoNewWindow -PassThru -RedirectStandardOutput "$LOG_DIR\chain.log" -RedirectStandardError "$LOG_DIR\chain.err.log"
+    $chainProcess.Id | Out-File "$PID_DIR\chain.pid"
+    Pop-Location
+
+    # Wait for RPC node
+    Log-Info "Waiting for Hardhat node to accept connections..."
+    $waited = 0
+    while (-not (Test-PortOpen $RPC_PORT)) {
+        Start-Sleep -Seconds 1
+        $waited++
+        if ($waited -ge $maxWait) {
+            Log-Die "Hardhat node did not start within $maxWait seconds. Check logs\chain.log and logs\chain.err.log"
+        }
+    }
+    Log-Ok "Hardhat node is up."
+
+    # 2. Deploy Contract
+    Log-Info "Deploying AuditLog contract..."
+    Push-Location blockchain
+    $deployProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npx hardhat run scripts/deploy.js --network localhost" -NoNewWindow -PassThru -Wait -RedirectStandardOutput "$LOG_DIR\deploy.log" -RedirectStandardError "$LOG_DIR\deploy.err.log"
+    if ($deployProcess.ExitCode -ne 0) {
+        Log-Die "AuditLog contract deployment failed. Check logs\deploy.log and logs\deploy.err.log"
+    }
+    $contractAddr = Get-Content "deployed_address.txt" -ErrorAction SilentlyContinue
+    Pop-Location
+    Log-Ok "AuditLog deployed to: $contractAddr"
+} else {
+    Log-Info "Using external RPC node: $rpcUrl"
+    if ($contractAddr) {
+        Log-Ok "Using configured contract address: $contractAddr"
+    } else {
+        Log-Die "External RPC node is configured but CONTRACT_ADDRESS is missing in backend/.env"
     }
 }
-Log-Ok "Hardhat node is up."
-
-# 2. Deploy Contract
-Log-Info "Deploying AuditLog contract..."
-Push-Location blockchain
-$deployProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npx hardhat run scripts/deploy.js --network localhost" -NoNewWindow -PassThru -Wait -RedirectStandardOutput "$LOG_DIR\deploy.log" -RedirectStandardError "$LOG_DIR\deploy.err.log"
-if ($deployProcess.ExitCode -ne 0) {
-    Log-Die "AuditLog contract deployment failed. Check logs\deploy.log and logs\deploy.err.log"
-}
-$contractAddr = Get-Content "deployed_address.txt" -ErrorAction SilentlyContinue
-Pop-Location
-Log-Ok "AuditLog deployed to: $contractAddr"
 
 # 3. Seed + Train
 Log-Info "Seeding database (admin + baseline activity)..."
