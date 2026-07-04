@@ -1,11 +1,11 @@
 require("@nomicfoundation/hardhat-ethers");
+// Load environment variables from a local .env file
+require("dotenv").config(); 
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  // 0.8.20 is the sweet spot for older/stable enterprise EVM builds
-  solidity: "0.8.20",
+  solidity: "0.8.20", 
   networks: {
-    // npx hardhat node serves here; the backend's RPC_URL points at it.
     localhost: {
       url: "http://127.0.0.1:8545",
     },
@@ -14,10 +14,11 @@ module.exports = {
     },
     besu: {
       url: "http://10.11.0.7:8545",
-      accounts: ["0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63"],
+      // Safely read the key from environment variables with a fallback placeholder
+      accounts: [process.env.BESU_PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000"],
       chainId: 1337,
-      gasPrice: 0,
-      type: "legacy"
+      gasPrice: 0,           
+      type: "legacy"         
     },
   },
 };
