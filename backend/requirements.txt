@@ -18,6 +18,7 @@ pyod==2.0.3            # optional fallback anomaly detector
 
 # storage
 SQLAlchemy==2.0.36
+psycopg2-binary==2.9.9
 
 # auth
 PyJWT==2.10.1

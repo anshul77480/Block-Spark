@@ -6,25 +6,33 @@ set -e
 RPC_URL="${RPC_URL:-http://chain:8545}"
 ADDR_FILE="${CONTRACT_ADDRESS_FILE:-/shared/deployed_address.txt}"
 
-echo "[backend] waiting for chain at ${RPC_URL} ..."
-for i in $(seq 1 60); do
-  if curl -s -X POST "${RPC_URL}" -H 'Content-Type: application/json' \
-      -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' >/dev/null 2>&1; then
-    echo "[backend] chain is up"
-    break
-  fi
-  sleep 2
-done
-
-if [ "${CHAIN_ENABLED:-true}" = "true" ]; then
-  echo "[backend] waiting for contract address at ${ADDR_FILE} ..."
+if [ "${SKIP_CHAIN_WAIT:-false}" = "true" ]; then
+  echo "[backend] skipping chain availability check"
+else
+  echo "[backend] waiting for chain at ${RPC_URL} ..."
   for i in $(seq 1 60); do
-    if [ -s "${ADDR_FILE}" ]; then
-      echo "[backend] contract address: $(cat ${ADDR_FILE})"
+    if curl -s -X POST "${RPC_URL}" -H 'Content-Type: application/json' \
+        -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' >/dev/null 2>&1; then
+      echo "[backend] chain is up"
       break
     fi
     sleep 2
   done
+fi
+
+if [ "${CHAIN_ENABLED:-true}" = "true" ]; then
+  if [ -n "${CONTRACT_ADDRESS}" ]; then
+    echo "[backend] contract address is set via environment variable: ${CONTRACT_ADDRESS}"
+  else
+    echo "[backend] waiting for contract address at ${ADDR_FILE} ..."
+    for i in $(seq 1 60); do
+      if [ -s "${ADDR_FILE}" ]; then
+        echo "[backend] contract address: $(cat ${ADDR_FILE})"
+        break
+      fi
+      sleep 2
+    done
+  fi
 fi
 
 echo "[backend] seeding database ..."

@@ -11,5 +11,10 @@ module.exports = {
     hardhat: {
       chainId: 31337,
     },
+    besu: {
+      url: "http://10.11.0.7:8545",
+      accounts: ["8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63"],
+      chainId: 1337,
+    },
   },
 };
