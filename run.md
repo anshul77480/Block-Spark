@@ -1,7 +1,7 @@
 # Run guide
 
-Four ways to run the POC: **`make`**, **one shell script**, **Docker (one
-command)**, or **manual (three terminals)**.
+Five ways to run the POC: **`make`**, **Windows PowerShell script**, **one shell script**,
+**Docker (one command)**, or **manual (three terminals)**.
 
 ---
 
@@ -47,7 +47,34 @@ Then open **http://localhost:3000** (login `admin` / `admin123`). Logs are in `l
 
 ---
 
-## Option 1 — One script
+## Option 1 — Windows (PowerShell) — no Docker needed
+
+Prerequisites: Python 3.11+, Node 18+.
+
+```powershell
+.\setup.ps1
+```
+
+This is the **recommended way to run on Windows**. It installs all dependencies
+(idempotent), starts the Hardhat chain, deploys the `AuditLog` contract, seeds the
+DB, trains the model, and starts the backend API and Next.js dashboard — then streams
+logs.
+
+Flags:
+- `.\setup.ps1 -SkipInstall` — skip dependency install, just run
+- `.\setup.ps1 -InstallOnly` — install dependencies then exit
+- `.\setup.ps1 -Stop` — stop all services started by a previous run
+
+Then open:
+- Dashboard: **http://localhost:3000** (login `admin` / `admin123`)
+- API docs:  **http://localhost:8000/docs**
+- Chain RPC: **http://localhost:8545**
+
+Logs are written to the `logs/` directory.
+
+---
+
+## Option 2 — One script (Linux / macOS)
 
 Prerequisites: Python 3.11+, Node 18+, curl.
 
@@ -67,7 +94,7 @@ Flags:
 
 ---
 
-## Option 2 — Docker
+## Option 3 — Docker
 
 Prerequisites: Docker + Docker Compose. (Or use `make docker-up` / `make docker-down`.)
 
@@ -90,7 +117,7 @@ Stop with `Ctrl+C`; remove volumes with `docker compose down -v`.
 
 ---
 
-## Option 3 — Manual (three terminals)
+## Option 4 — Manual (three terminals)
 
 Prerequisites: Python 3.11+ , Node 18+ . Each step below also has a `make` shortcut
 (`make chain`, `make deploy`, `make seed`, `make train`, `make backend`,
