@@ -198,11 +198,28 @@ if ($isLocalRpc) {
     Pop-Location
     Log-Ok "AuditLog deployed to: $contractAddr"
 } else {
-    Log-Info "Using external RPC node: $rpcUrl"
+    Log-Info "Using external Besu RPC node: $rpcUrl"
     if ($contractAddr) {
-        Log-Ok "Using configured contract address: $contractAddr"
+        Log-Ok "Using pre-configured contract address: $contractAddr"
     } else {
-        Log-Die "External RPC node is configured but CONTRACT_ADDRESS is missing in backend/.env"
+        # No pre-set address — deploy the contract to the Besu network now
+        Log-Info "No CONTRACT_ADDRESS set — deploying AuditLog contract to Besu..."
+        Push-Location blockchain
+        $besuEnv = @{ "BESU_RPC_URL" = $rpcUrl; "PRIVATE_KEY" = $env:PRIVATE_KEY }
+        $deployProcess = Start-Process -FilePath "cmd.exe" `
+            -ArgumentList "/c npx hardhat run scripts/deploy.js --network besu" `
+            -NoNewWindow -PassThru -Wait `
+            -RedirectStandardOutput "$LOG_DIR\deploy.log" `
+            -RedirectStandardError "$LOG_DIR\deploy.err.log"
+        if ($deployProcess.ExitCode -ne 0) {
+            Log-Die "AuditLog contract deployment to Besu failed. Check logs\deploy.log and logs\deploy.err.log"
+        }
+        $contractAddr = (Get-Content "deployed_address.txt" -ErrorAction SilentlyContinue).Trim()
+        if (-not $contractAddr) {
+            Log-Die "Deployment succeeded but deployed_address.txt is empty. Check logs\deploy.log"
+        }
+        Pop-Location
+        Log-Ok "AuditLog deployed to Besu: $contractAddr"
     }
 }
 
