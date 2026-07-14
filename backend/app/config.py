@@ -25,6 +25,7 @@ class Settings:
 
     # Chain
     RPC_URL: str = os.getenv("RPC_URL", "http://127.0.0.1:8545")
+    PRIVATE_KEY: str = os.getenv("PRIVATE_KEY", "").strip()
     CONTRACT_ADDRESS: str = os.getenv("CONTRACT_ADDRESS", "").strip()
     CONTRACT_ADDRESS_FILE: str = os.getenv(
         "CONTRACT_ADDRESS_FILE", "../blockchain/deployed_address.txt"

@@ -101,7 +101,17 @@ class ChainClient:
                 return
             self.address = Web3.to_checksum_address(self.address)
             self.contract = self.w3.eth.contract(address=self.address, abi=_ABI)
-            self.account = self.w3.eth.accounts[0]  # unlocked hardhat account
+            
+            if settings.PRIVATE_KEY:
+                # Use private key for signing transactions (needed for remote nodes like Besu)
+                self.account = self.w3.eth.account.from_key(settings.PRIVATE_KEY)
+            else:
+                # Fallback to unlocked node account (local Hardhat)
+                if not self.w3.eth.accounts:
+                    self.status = "no_accounts_available"
+                    return
+                self.account = self.w3.eth.accounts[0]
+                
             self.status = "connected"
         except Exception as e:  # noqa: BLE001
             self.status = f"error: {e}"
@@ -116,9 +126,33 @@ class ChainClient:
             from web3 import Web3
 
             hash_bytes = Web3.to_bytes(hexstr="0x" + h)
-            tx = self.contract.functions.anchorEvent(hash_bytes, metadata).transact(
-                {"from": self.account}
-            )
+            
+            # Check if using private key for local signing
+            if settings.PRIVATE_KEY and hasattr(self.account, "address"):
+                sender_address = self.account.address
+                # Get chainId, fallback to 1337 if not available or fails
+                try:
+                    chain_id = self.w3.eth.chain_id
+                except Exception:
+                    chain_id = 1337
+                
+                # Build transaction
+                tx_build = self.contract.functions.anchorEvent(hash_bytes, metadata).build_transaction({
+                    "from": sender_address,
+                    "nonce": self.w3.eth.get_transaction_count(sender_address),
+                    "gasPrice": self.w3.eth.gas_price,
+                    "chainId": chain_id,
+                })
+                # Sign transaction locally
+                signed_tx = self.w3.eth.account.sign_transaction(tx_build, private_key=settings.PRIVATE_KEY)
+                # Send raw transaction
+                tx = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            else:
+                # Fallback to unlocked account transact
+                tx = self.contract.functions.anchorEvent(hash_bytes, metadata).transact(
+                    {"from": self.account}
+                )
+                
             receipt = self.w3.eth.wait_for_transaction_receipt(tx, timeout=30)
             tx_hex = receipt.transactionHash.hex()
             result["anchor_tx"] = tx_hex if tx_hex.startswith("0x") else "0x" + tx_hex

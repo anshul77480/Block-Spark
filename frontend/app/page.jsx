@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/lib/api";
+import { login, BASE_URL } from "@/lib/api";
 import { Shield, Activity, Lock, Link as LinkIcon, BlockSparkLogo } from "@/components/icons";
 
 const FEATURES = [
@@ -80,7 +80,7 @@ export default function LoginPage() {
           </div>
 
           <div className="flex items-center gap-4 text-xs font-semibold text-muted">
-            <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer" className="hover:text-brand transition">API Docs</a>
+            <a href={`${BASE_URL}/docs`} target="_blank" rel="noreferrer" className="hover:text-brand transition">API Docs</a>
             <span className="text-border">|</span>
             <div className="flex items-center gap-1.5 text-brand bg-brand/5 border border-brand/10 px-2.5 py-1 rounded-full">
               <span className="h-1.5 w-1.5 rounded-full bg-brand" />
